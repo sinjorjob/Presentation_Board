@@ -1,0 +1,951 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body {
+            margin: 0;
+            background: #000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            font-family: 'Segoe UI', 'Arial', sans-serif;
+            overflow: hidden;
+            perspective: 1000px;
+            cursor: none;
+        }
+        
+        /* カーソル関連のスタイル */
+        .cursor-dot {
+            width: 8px;
+            height: 8px;
+            background: rgba(160, 215, 255, 0.9);
+            border-radius: 50%;
+            position: fixed;
+            pointer-events: none;
+            z-index: 9999;
+            transform: translate(-50%, -50%);
+            transition: transform 0.1s ease;
+            box-shadow: 0 0 10px rgba(160, 215, 255, 0.6);
+        }
+
+        .cursor-trail {
+            width: 24px;
+            height: 24px;
+            background: rgba(160, 215, 255, 0.2);
+            border-radius: 50%;
+            position: fixed;
+            pointer-events: none;
+            z-index: 9998;
+            transform: translate(-50%, -50%);
+            transition: all 0.15s ease;
+            box-shadow: 0 0 20px rgba(160, 215, 255, 0.3);
+        }
+
+        /* ホバー時のエフェクト */
+        .clickable {
+            cursor: none;
+        }
+
+        .clickable:hover ~ .cursor-dot {
+            transform: translate(-50%, -50%) scale(1.5);
+            background: rgba(160, 215, 255, 1);
+        }
+
+        .clickable:hover ~ .cursor-trail {
+            transform: translate(-50%, -50%) scale(2);
+            background: rgba(160, 215, 255, 0.3);
+        }
+        
+        #container {
+            width: 100vw;
+            height: 100vh;
+            background: transparent;
+            padding: 20px;
+            position: relative;
+            line-height: 1.6;
+            box-sizing: border-box;
+            z-index: 10;
+        }
+        
+        .cyber-background {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, 
+                #000000,
+                #050709,
+                #0A0D12,
+                #050709,
+                #000000);
+            background-size: 400% 400%;
+            animation: gradientShift 15s ease infinite;
+            z-index: 1;
+            overflow: hidden;
+        }
+        
+        .lightning {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 5;
+            mix-blend-mode: screen;
+        }
+        
+        .thunder-flash {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0);
+            pointer-events: none;
+            z-index: 4;
+            mix-blend-mode: screen;
+            transition: background 0.1s ease-out;
+        }
+        
+        .spotlight-container {
+            position: fixed;
+            bottom: -50%;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 200vw;
+            height: 200vh;
+            pointer-events: none;
+            z-index: 3;
+            opacity: 1;
+        }
+        
+        .spotlight {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background: conic-gradient(
+                from -90deg at 50% 100%,
+                rgba(160, 215, 255, 0.15) 0deg,
+                rgba(160, 215, 255, 0.1) 20deg,
+                transparent 40deg,
+                transparent 320deg,
+                rgba(160, 215, 255, 0.1) 340deg,
+                rgba(160, 215, 255, 0.15) 360deg
+            );
+            mix-blend-mode: screen;
+            transform-origin: bottom center;
+            animation: spotlightSweep 10s ease-in-out infinite;
+        }
+        
+        .spotlight::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: radial-gradient(
+                circle at 50% 100%,
+                rgba(160, 215, 255, 0.2) 0%,
+                rgba(160, 215, 255, 0.1) 30%,
+                transparent 60%
+            );
+            mix-blend-mode: screen;
+        }
+        
+        .text-container {
+            max-width: 800px;
+            margin: 100px auto auto;
+            padding: 40px;
+            background: rgba(11, 15, 23, 0.85);
+            border: 1px solid rgba(160, 215, 255, 0.1);
+            border-radius: 20px;
+            backdrop-filter: blur(10px);
+            transform-style: preserve-3d;
+            animation: containerFloat 6s ease-in-out infinite;
+            box-sizing: border-box;
+            position: relative;
+            height: 60vh;
+            overflow: hidden;
+            max-height: calc(100vh - 200px);
+            box-shadow: 
+                0 0 40px rgba(160, 215, 255, 0.15),
+                0 0 80px rgba(160, 215, 255, 0.1),
+                0 0 120px rgba(160, 215, 255, 0.05);
+            z-index: 2;
+            transition: transform 0.5s ease, box-shadow 0.5s ease;
+        }
+        
+        .text-container::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            border-radius: 20px;
+            background: linear-gradient(
+                180deg,
+                rgba(160, 215, 255, 0.1) 0%,
+                rgba(160, 215, 255, 0.05) 50%,
+                rgba(160, 215, 255, 0.15) 100%
+            );
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.5s ease;
+        }
+        
+        .text-container.spotlight-active::before {
+            opacity: 1;
+        }
+        
+        .slide {
+            position: absolute;
+            top: 40px;
+            left: 0;
+            width: 100%;
+            height: calc(100% - 40px);
+            opacity: 0;
+            transform: translateX(100%) rotateY(90deg);
+            transition: all 1s cubic-bezier(0.4, 0, 0.2, 1);
+            padding: 20px 30px;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .slide-content {
+            font-size: 18px;
+            line-height: 1.8;
+            color: #E8EDF4;
+        }
+        
+        .slide-content ul, .slide-content ol {
+            margin: 20px 0;
+            padding-left: 40px;
+        }
+        
+        .slide-content li {
+            margin-bottom: 15px;
+        }
+        
+        .slide.active {
+            opacity: 1;
+            transform: translateX(0) rotateY(0);
+        }
+        
+        .slide.previous {
+            opacity: 0;
+            transform: translateX(-100%) rotateY(-90deg);
+        }
+        
+        .progress-bar {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 10px;
+            z-index: 100;
+            background: rgba(11, 15, 23, 0.8);
+            padding: 10px 20px;
+            border-radius: 20px;
+            backdrop-filter: blur(5px);
+            border: 1px solid rgba(160, 215, 255, 0.1);
+        }
+        
+        .progress-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: rgba(160, 215, 255, 0.2);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .progress-dot::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #A0D7FF;
+            transform: scale(0);
+            transition: transform 0.3s ease;
+            border-radius: 50%;
+        }
+        
+        .progress-dot.active::after {
+            transform: scale(1);
+        }
+        
+        .slide-controls {
+            position: fixed;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            padding: 0 30px;
+            z-index: 100;
+            pointer-events: none;
+        }
+        
+        .slide-control {
+            width: 50px;
+            height: 50px;
+            border: 2px solid rgba(160, 215, 255, 0.2);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            background: rgba(11, 15, 23, 0.8);
+            backdrop-filter: blur(5px);
+            transition: all 0.3s ease;
+            pointer-events: auto;
+            color: #A0D7FF;
+            font-size: 24px;
+            text-shadow: 0 0 10px rgba(160, 215, 255, 0.5);
+        }
+        
+        .slide-control:hover {
+            background: rgba(160, 215, 255, 0.1);
+            transform: scale(1.1);
+            box-shadow: 0 0 20px rgba(160, 215, 255, 0.2);
+        }
+        
+        .title {
+            color: #ff79c6;
+            font-size: 28px;
+            font-weight: 600;
+            text-shadow: 
+                0 0 10px rgba(255, 121, 198, 0.7),
+                0 1px 2px rgba(0, 0, 0, 0.5),
+                0 2px 4px rgba(0, 0, 0, 0.3);
+            margin-bottom: 20px;
+            letter-spacing: 0.5px;
+            position: relative;
+            z-index: 1;
+        }
+        
+        .concept { 
+            color: #ff79c6;
+            font-weight: 500;
+            text-shadow: 
+                0 0 15px rgba(255, 121, 198, 0.7),
+                0 1px 2px rgba(0, 0, 0, 0.5),
+                0 2px 4px rgba(0, 0, 0, 0.3);
+            position: relative;
+        }
+        
+        .tech { 
+            color: #8be9fd;
+            font-weight: 500;
+            text-shadow: 
+                0 0 15px rgba(139, 233, 253, 0.7),
+                0 1px 2px rgba(0, 0, 0, 0.5),
+                0 2px 4px rgba(0, 0, 0, 0.3);
+            position: relative;
+        }
+        
+        .strength { 
+            color: #50fa7b;
+            font-weight: 500;
+            text-shadow: 
+                0 0 15px rgba(80, 250, 123, 0.7),
+                0 1px 2px rgba(0, 0, 0, 0.5),
+                0 2px 4px rgba(0, 0, 0, 0.3);
+            position: relative;
+        }
+        
+        .challenge { 
+            color: #ffb86c;
+            font-weight: 500;
+            text-shadow: 
+                0 0 15px rgba(255, 184, 108, 0.7),
+                0 1px 2px rgba(0, 0, 0, 0.5),
+                0 2px 4px rgba(0, 0, 0, 0.3);
+            position: relative;
+        }
+        
+        .human { 
+            color: #bd93f9;
+            font-weight: 500;
+            text-shadow: 
+                0 0 15px rgba(189, 147, 249, 0.7),
+                0 1px 2px rgba(0, 0, 0, 0.5),
+                0 2px 4px rgba(0, 0, 0, 0.3);
+            position: relative;
+        }
+        
+        .impact { 
+            color: #f1fa8c;
+            font-weight: 500;
+            text-shadow: 
+                0 0 15px rgba(241, 250, 140, 0.7),
+                0 1px 2px rgba(0, 0, 0, 0.5),
+                0 2px 4px rgba(0, 0, 0, 0.3);
+            position: relative;
+        }
+        
+        .connect { 
+            color: #6272a4;
+            text-shadow: 
+                0 0 15px rgba(98, 114, 164, 0.7),
+                0 1px 2px rgba(0, 0, 0, 0.5),
+                0 2px 4px rgba(0, 0, 0, 0.3);
+            position: relative;
+        }
+        
+        .punctuation { 
+            color: #6272a4;
+            opacity: 0.9;
+            text-shadow: 
+                0 0 10px rgba(98, 114, 164, 0.5),
+                0 1px 2px rgba(0, 0, 0, 0.3);
+            position: relative;
+        }
+        
+        @keyframes appear {
+            0% {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            100% {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        @keyframes flash {
+            0% { background: rgba(160, 215, 255, 0); }
+            10% { background: rgba(160, 215, 255, 0.4); }
+            20% { background: rgba(160, 215, 255, 0.2); }
+            30% { background: rgba(160, 215, 255, 0.3); }
+            40%, 100% { background: rgba(160, 215, 255, 0); }
+        }
+        
+        @keyframes gradientShift {
+            0%, 100% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+        }
+        
+        @keyframes containerFloat {
+            0%, 100% {
+                transform: translateY(0) translateZ(0) rotateX(0);
+            }
+            50% {
+                transform: translateY(-10px) translateZ(20px) rotateX(1deg);
+            }
+        }
+        
+        @keyframes spotlightSweep {
+            0%, 100% {
+                transform: rotate(-20deg);
+            }
+            50% {
+                transform: rotate(20deg);
+            }
+        }
+
+        .page-number {
+            position: absolute;
+            bottom: 35px;
+            right: 40px;
+            font-family: 'Segoe UI', sans-serif;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            background: rgba(11, 15, 23, 0.7);
+            padding: 12px 20px;
+            border-radius: 20px;
+            border: 1px solid rgba(160, 215, 255, 0.1);
+            backdrop-filter: blur(8px);
+            transform: perspective(1000px) rotateX(10deg);
+            box-shadow: 
+                0 0 20px rgba(160, 215, 255, 0.1),
+                inset 0 0 15px rgba(160, 215, 255, 0.05);
+            animation: floatNumber 3s ease-in-out infinite;
+        }
+        
+        .current-page {
+            font-size: 24px;
+            color: #A0D7FF;
+            font-weight: 300;
+            letter-spacing: 1px;
+            padding-right: 12px;
+            position: relative;
+            text-shadow: 
+                0 0 10px rgba(160, 215, 255, 0.6),
+                0 0 20px rgba(160, 215, 255, 0.3);
+        }
+        
+        .current-page::after {
+            content: '';
+            position: absolute;
+            right: 0;
+            top: 50%;
+            width: 1px;
+            height: 15px;
+            background: linear-gradient(
+                to bottom,
+                transparent,
+                rgba(160, 215, 255, 0.8),
+                transparent
+            );
+            transform: translateY(-50%) rotate(15deg);
+        }
+        
+        .total-pages {
+            font-size: 16px;
+            color: rgba(160, 215, 255, 0.4);
+            position: relative;
+            padding-left: 8px;
+            font-weight: 300;
+        }
+        
+        @keyframes floatNumber {
+            0%, 100% {
+                transform: perspective(1000px) rotateX(10deg) translateY(0);
+            }
+            50% {
+                transform: perspective(1000px) rotateX(10deg) translateY(-3px);
+            }
+        }
+
+    </style>
+</head>
+<body>
+    <div class="cursor-dot"></div>
+    <div class="cursor-trail"></div>
+    
+    <div class="cyber-background">
+        <div class="lightning"></div>
+        <div class="thunder-flash"></div>
+    </div>
+
+    <div class="spotlight-container">
+        <div class="spotlight"></div>
+    </div>
+
+    <div id="container">
+        <div class="text-container">
+            <!-- Slides will be dynamically inserted here -->
+        </div>
+    </div>
+
+    <div class="progress-bar">
+        <!-- Progress dots will be dynamically inserted here -->
+    </div>
+
+    <div class="slide-controls">
+        <div class="slide-control prev">←</div>
+        <div class="slide-control next">→</div>
+    </div>
+
+    <script>
+        const words = {
+            concept: [
+                '生成AIの利点', 'AIツール','生成AIの時代に必要な能力についての考察','まとめ',
+                '理想的な人材の条件', 'AI時代','生成AIの現状と課題','現場での課題','必要な能力',
+            ],
+            
+            tech: [
+                '適切な分割',
+                'フォーマット変換',
+                'データの照合と整形',
+                '基準の設定',
+                '照合',
+                '整形',
+                'AIに正確に指示を出すための能力',
+                '複雑な作業を適切なステップに分ける能力',
+                'データ処理タスク',
+            ],
+            
+            strength: [
+                '非構造化データの処理が得意',
+                '大きな可能性がある',
+                '大量の作業を正確にこなせる',
+                'コスト効率が良い',
+                '24時間稼働が可能',
+                '不満を言わずに作業を続ける',
+                '言語能力',
+                '効果的に使う',
+                'タスク分解能力',
+                '高い言語能力',
+                '継続的な学習能力と謙虚さが重要',
+                '謙虚さと素直さ',
+            ],
+            
+            challenge: [
+                'うまく活用できていない',
+                '自分で作業したほうが早い',
+                '期待した成果が得られない',
+                '活用には課題がある'
+            ],
+            
+            human: [
+                '人材の発掘・育成',
+                '求められる人材',
+                '企業や個人'
+            ],
+            
+            impact: [
+                '企業の競争力を左右する重要な要素',
+                '技術的スキルと継続的な学習能力',
+                '重要な点',
+                '参考文献',  
+            ]
+        };
+
+        const slideContents = [
+            {
+                title: "生成AIの現状と課題",
+                content: `生成AI企業を1年間運営してきた経験から、以下の2つの重要な点が見えてきました：
+- 生成AIには大きな可能性がある
+- しかし、その活用には課題がある`
+            },
+            {
+                title: "現場での課題",
+                content: `多くの企業や個人から以下のような声が聞かれます：
+- 「導入したものの、うまく活用できていない」
+- 「自分で作業したほうが早い」
+- 「期待した成果が得られない」`
+            },
+            {
+                title: "必要な能力",
+                content: `現状のAIツールを効果的に使うには、2つの重要な能力が必要です：
+1. 言語能力：AIに正確に指示を出すための能力
+2. タスク分解能力：複雑な作業を適切なステップに分ける能力`
+            },
+            {
+                title: "実践例：データ処理タスク",
+                content: `例えば、ニュースデータから特定の話題を抽出する場合：
+1. データの適切な分割
+2. AI向けのフォーマット変換
+3. 明確な基準の設定
+4. データの照合
+5. 結果の整形`
+            },
+            {
+                title: "生成AIの利点",
+                content: `デメリットばかりではなく、以下のような強みもあります：
+- 非構造化データの処理が得意
+- 大量の作業を正確にこなせる
+- コスト効率が良い
+- 24時間稼働が可能
+- 不満を言わずに作業を続ける`
+            },
+            {
+                title: "理想的な人材の条件",
+                content: `生成AI時代に求められる人材の条件：
+- 高い言語能力
+- タスク分解能力
+- 継続的な学習能力
+- 謙虚さと素直さ`
+            },
+            {
+                title: "まとめ",
+                content: `生成AIの時代では、技術的スキルと共に、継続的な学習能力と謙虚さが重要です。
+これらの能力を持つ人材の発掘・育成が、企業の競争力を左右する重要な要素となっています。`
+            },
+            {
+                title: "参考文献",
+                content: `本プレゼンテーションは以下の記事を参考に作成されています：
+        
+        「生成AIの時代に必要な能力についての考察」
+        "https://article.yahoo.co.jp/detail/983fcd40cbcf5c4c5e09a092960b2ed601c3c243"
+        著作権およびクレジットは原著作者に帰属します。`
+            }
+        ];
+
+        // カーソルエフェクトの実装
+        function initializeCursor() {
+            const cursorDot = document.querySelector('.cursor-dot');
+            const cursorTrail = document.querySelector('.cursor-trail');
+            
+            // クリック可能な要素にclickableクラスを追加
+            const clickableElements = document.querySelectorAll('button, .slide-control, .progress-dot');
+            clickableElements.forEach(elem => {
+                elem.classList.add('clickable');
+            });
+
+            // マウス移動のイベントリスナー
+            document.addEventListener('mousemove', (e) => {
+                // メインカーソル
+                cursorDot.style.left = e.clientX + 'px';
+                cursorDot.style.top = e.clientY + 'px';
+                
+                // トレイル効果
+                requestAnimationFrame(() => {
+                    cursorTrail.style.left = e.clientX + 'px';
+                    cursorTrail.style.top = e.clientY + 'px';
+                });
+            });
+
+            // クリック時のエフェクト
+            document.addEventListener('mousedown', () => {
+                cursorDot.style.transform = 'translate(-50%, -50%) scale(0.8)';
+                cursorTrail.style.transform = 'translate(-50%, -50%) scale(0.8)';
+            });
+
+            document.addEventListener('mouseup', () => {
+                cursorDot.style.transform = 'translate(-50%, -50%) scale(1)';
+                cursorTrail.style.transform = 'translate(-50%, -50%) scale(1)';
+            });
+        }
+
+        const container = document.querySelector('.text-container');
+        const progressBar = document.querySelector('.progress-bar');
+        const spotlightContainer = document.querySelector('.spotlight-container');
+        const textContainer = document.querySelector('.text-container');
+        let currentSlide = 0;
+        let slides = [];
+
+        function getStyle(char, context, position) {
+            const contextRange = 20;
+            const start = Math.max(0, position - contextRange);
+            const end = position + contextRange;
+            const surrounding = context.slice(start, end);
+
+            for (const [category, categoryWords] of Object.entries(words)) {
+                for (const word of categoryWords) {
+                    if (surrounding.includes(word)) {
+                        const wordStart = surrounding.indexOf(word);
+                        const charPositionInSurrounding = position - start;
+                        
+                        if (charPositionInSurrounding >= wordStart && 
+                            charPositionInSurrounding < wordStart + word.length) {
+                            return category;
+                        }
+                    }
+                }
+            }
+
+            if ('、。,.'.includes(char)) return 'punctuation';
+            if (['は', 'が', 'の', 'に', 'と', 'て', 'を', 'も', 'な', 'ば'].includes(char)) return 'connect';
+            
+            return 'connect';
+        }
+
+        function updateSpotlight(e) {
+            if (!textContainer.classList.contains('spotlight-active')) return;
+            
+            const rect = textContainer.getBoundingClientRect();
+            const centerX = rect.left + rect.width / 2;
+            const centerY = rect.top + rect.height / 2;
+            
+            spotlightContainer.style.background = `radial-gradient(
+                circle at ${centerX}px ${centerY}px,
+                transparent 100px,
+                rgba(0, 0, 0, 0.85) 300px
+            )`;
+        }
+
+        function activateSpotlight() {
+            spotlightContainer.style.opacity = '1';
+            textContainer.classList.add('spotlight-active');
+            updateSpotlight();
+        }
+
+        function createLightning() {
+            const lightning = document.querySelector('.lightning');
+            const flash = document.querySelector('.thunder-flash');
+            
+            function generateBolt() {
+                const mainBolt = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+                mainBolt.style.position = 'absolute';
+                mainBolt.style.width = '100%';
+                mainBolt.style.height = '100%';
+                mainBolt.style.top = '0';
+                mainBolt.style.left = '0';
+                
+                const startX = Math.random() * window.innerWidth;
+                let currentX = startX;
+                let currentY = -50;
+                let path = `M ${currentX} ${currentY}`;
+                
+                while (currentY < window.innerHeight + 50) {
+                    const nextY = currentY + (Math.random() * 30 + 20);
+                    const nextX = currentX + (Math.random() - 0.5) * 100;
+                    path += ` L ${nextX} ${nextY}`;
+                    currentX = nextX;
+                    currentY = nextY;
+                }
+                
+                const pathElement = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                pathElement.setAttribute('d', path);
+                pathElement.setAttribute('stroke', 'rgba(160, 215, 255, 0.9)');
+                pathElement.setAttribute('stroke-width', '2');
+                pathElement.setAttribute('fill', 'none');
+                pathElement.style.filter = 'drop-shadow(0 0 8px rgba(160, 215, 255, 0.8))';
+                
+                mainBolt.appendChild(pathElement);
+                lightning.appendChild(mainBolt);
+                
+                flash.style.animation = 'none';
+                flash.offsetHeight;
+                flash.style.animation = 'flash 0.5s ease-out';
+                
+                setTimeout(() => {
+                    mainBolt.remove();
+                }, 150);
+            }
+            
+            function scheduleLightning() {
+                const delay = Math.random() * 8000 + 3000;
+                setTimeout(() => {
+                    generateBolt();
+                    if (Math.random() < 0.4) {
+                        setTimeout(() => {
+                            generateBolt();
+                        }, 100);
+                    }
+                    scheduleLightning();
+                }, delay);
+            }
+            
+            scheduleLightning();
+        }
+
+        function initializeSlides() {
+            slideContents.forEach((content, index) => {
+                const slide = document.createElement('div');
+                slide.className = `slide ${index === 0 ? 'active' : ''}`;
+                container.appendChild(slide);
+                slides.push(slide);
+
+                const dot = document.createElement('div');
+                dot.className = `progress-dot ${index === 0 ? 'active' : ''}`;
+                dot.addEventListener('click', () => goToSlide(index));
+                progressBar.appendChild(dot);
+            });
+        }
+function goToSlide(index) {
+            if (index === currentSlide) return;
+
+            slides[currentSlide].className = 'slide previous';
+            slides[index].className = 'slide active';
+
+            document.querySelectorAll('.progress-dot').forEach((dot, i) => {
+                dot.className = `progress-dot ${i === index ? 'active' : ''}`;
+            });
+
+            currentSlide = index;
+            startTypingAnimation(index);
+            
+            setTimeout(() => {
+                activateSpotlight();
+            }, 100);
+        }
+
+        function startTypingAnimation(slideIndex) {
+            const slide = slides[slideIndex];
+            const content = slideContents[slideIndex];
+            slide.innerHTML = '';
+            
+            const pageNumberElement = document.createElement('div');
+            pageNumberElement.className = 'page-number';
+
+            const currentPage = document.createElement('span');
+            currentPage.className = 'current-page';
+            currentPage.textContent = `${String(slideIndex + 1).padStart(2, '0')}`;
+
+            const totalPages = document.createElement('span');
+            totalPages.className = 'total-pages';
+            totalPages.textContent = String(slideContents.length).padStart(2, '0');
+
+            const pageContainer = document.createElement('div');
+            pageContainer.className = 'page-container';
+            pageContainer.appendChild(currentPage);
+            pageContainer.appendChild(totalPages);
+
+            pageNumberElement.appendChild(pageContainer);
+            slide.appendChild(pageNumberElement);
+
+            const titleElement = document.createElement('div');
+            titleElement.className = 'title';
+            slide.appendChild(titleElement);
+
+            const contentElement = document.createElement('div');
+            contentElement.className = 'slide-content';
+            slide.appendChild(contentElement);
+
+            let charIndex = 0;
+            const fullText = content.title + '\n\n' + content.content;
+            let currentElement = titleElement;
+            let isInTitle = true;
+            let currentDelay = 50;
+
+            function typeCharacter() {
+                if (charIndex < fullText.length) {
+                    const char = fullText[charIndex];
+                    
+                    if (char === '\n') {
+                        if (isInTitle) {
+                            isInTitle = false;
+                            currentElement = contentElement;
+                            currentDelay = 200;
+                        } else {
+                            currentElement.appendChild(document.createElement('br'));
+                            currentDelay = 150;
+                        }
+                    } else {
+                        const span = document.createElement('span');
+                        span.textContent = char;
+                        const style = getStyle(char, fullText, charIndex);
+                        span.className = `character ${style}`;
+                        
+                        if ('、。,.'.includes(char)) {
+                            currentDelay = 150;
+                        } else {
+                            currentDelay = 50;
+                        }
+                        
+                        currentElement.appendChild(span);
+                    }
+
+                    charIndex++;
+                    setTimeout(typeCharacter, currentDelay);
+                }
+            }
+
+            typeCharacter();
+        }
+
+        // Initialize and start
+        initializeSlides();
+        startTypingAnimation(0);
+        createLightning();
+        initializeCursor();
+        
+        // スポットライト効果の初期化
+        window.addEventListener('load', () => {
+            setTimeout(activateSpotlight, 500);
+        });
+        window.addEventListener('resize', updateSpotlight);
+
+        // Controls
+        document.querySelector('.prev').addEventListener('click', () => {
+            if (currentSlide > 0) goToSlide(currentSlide - 1);
+        });
+
+        document.querySelector('.next').addEventListener('click', () => {
+            if (currentSlide < slides.length - 1) goToSlide(currentSlide + 1);
+        });
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowLeft' && currentSlide > 0) {
+                goToSlide(currentSlide - 1);
+            } else if (e.key === 'ArrowRight' && currentSlide < slides.length - 1) {
+                goToSlide(currentSlide + 1);
+            }
+        });
+    </script>
+</body>
+</html>
